@@ -13,14 +13,14 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-from logging.logger import logging
-from exception.exception import CSRException
-from src.csr.constants import (
+from csr.logging.logger import logging
+from csr.exception.exception import CSRException
+from csr.constants import (
     DB_SCHEMA,
     TABLE_CLEANED_TRANSACTIONS,
     DB_INSERT_CHUNKSIZE,
 )
-from src.csr.config.configuration import ConfigurationManager, DatabaseConfig
+from csr.config.configuration import ConfigurationManager, DatabaseConfig
 
 
 # ─── Engine factory ───────────────────────────────────────────────────────────

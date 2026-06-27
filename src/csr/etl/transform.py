@@ -23,9 +23,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from logging.logger import logging
-from exception.exception import CSRException
-from src.csr.constants import (
+from csr.logging.logger import logging
+from csr.exception.exception import CSRException
+from csr.constants import (
     COL_CUSTOMER_ID,
     COL_INVOICE,
     COL_INVOICE_DATE,
@@ -38,7 +38,7 @@ from src.csr.constants import (
     CANCELLATION_PREFIX,
     OUTLIER_QUANTILE,
 )
-from src.csr.config.configuration import ConfigurationManager, ETLConfig
+from csr.config.configuration import ConfigurationManager, ETLConfig
 
 
 def transform(
@@ -244,8 +244,10 @@ def _cap_outliers(df: pd.DataFrame, etl_config: ETLConfig) -> pd.DataFrame:
 
 def _add_revenue(df: pd.DataFrame, etl_config: ETLConfig) -> pd.DataFrame:
     try:
+        qty_col   = etl_config.quantity_column
+        price_col = etl_config.price_column
         df[COL_REVENUE] = (
-            df[etl_config.quantity_column] * df[etl_config.price_column]
+            df[qty_col] * df[price_col]
         ).round(2)
 
         logging.info(
@@ -262,7 +264,11 @@ def _add_revenue(df: pd.DataFrame, etl_config: ETLConfig) -> pd.DataFrame:
 def _strip_whitespace(df: pd.DataFrame) -> pd.DataFrame:
     try:
         str_cols = df.select_dtypes(include="object").columns
-        df[str_cols] = df[str_cols].apply(lambda col: col.str.strip())
+
+        for col in str_cols:
+            df[col] = df[col].apply(
+                lambda x: x.strip() if isinstance(x, str) else x
+            )
         logging.info(f"Stripped whitespace from columns: {str_cols.tolist()}")
         return df
     except Exception as e:

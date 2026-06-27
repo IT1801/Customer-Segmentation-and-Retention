@@ -2,9 +2,9 @@ import sys
 from pathlib import Path
 import pandas as pd
 
-from logging.logger import logging
-from exceptions.exceptions import CSRException
-from src.csr.constants import (
+from csr.logging.logger import logging
+from csr.exception.exception import CSRException
+from csr.constants import (
     COL_CUSTOMER_ID,
     COL_INVOICE,
     COL_INVOICE_DATE,
@@ -15,7 +15,7 @@ from src.csr.constants import (
     COL_COUNTRY,
     RAW_DATA_FILE,
 )
-from src.csr.config.configuration import ConfigurationManager, ETLConfig
+from csr.config.configuration import ConfigurationManager, ETLConfig
 
 
 def extract(
