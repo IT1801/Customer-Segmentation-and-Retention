@@ -1,0 +1,91 @@
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  name: ${DB_NAME}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  schema: retail
+
+paths:
+  raw_data: data/raw/online_retail.xlsx
+  interim_dir: data/interim
+  processed_dir: data/processed
+  artifacts_dir: models/artifacts
+
+etl:
+  sheet_names:
+    - "Online Retail"
+  date_column: InvoiceDate
+  customer_id_column: CustomerID
+  invoice_column: InvoiceNo
+  quantity_column: Quantity
+  price_column: UnitPrice
+  stock_code_column: StockCode
+  description_column: Description
+  country_column: Country
+  cancellation_prefix: "C"
+  outlier_quantile: 0.99
+  interim_table: cleaned_transactions
+  chunksize: 10000
+
+features:
+  rfm_table: customer_rfm
+  behavioural_table: customer_behavioural
+  cohort_table: customer_cohort
+  features_table: customer_features
+  clv_horizon_months: 12
+  clv_discount_rate: 0.01
+  churn_threshold_days: 90
+
+models:
+  segmentation:
+    n_clusters: 4
+    random_state: 42
+    n_init: 10
+    rfm_columns:
+      - Recency
+      - Log_Frequency
+      - Log_Monetary
+    artifact_name: kmeans.joblib
+    scaler_artifact: scaler_rfm.joblib
+
+  churn:
+    test_size: 0.2
+    random_state: 42
+    n_estimators: 300
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    artifact_name: churn_xgb.joblib
+    feature_columns:
+      - Recency
+      - Frequency
+      - Monetary
+      - AOV
+      - SpendStd
+      - UniqueSKUs
+      - RepeatSKURatio
+      - TotalItems
+      - AvgGap
+      - StdGap
+      - WeekendRatio
+      - PreferredDayOfWeek
+      - ActiveMonths
+      - DaysSinceFirstPurchase
+      - ReturnRate
+      - Segment
+
+  clv:
+    penalizer_coef: 0.01
+    bgf_artifact: bgf.joblib
+    ggf_artifact: ggf.joblib
+
+mlflow:
+  tracking_uri: ${MLFLOW_TRACKING_URI}
+  experiment_name: ${MLFLOW_EXPERIMENT_NAME}
+
+api:
+  host: 0.0.0.0
+  port: 8000
+  reload: true
