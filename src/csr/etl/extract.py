@@ -23,7 +23,7 @@ def extract(
     etl_config: ETLConfig = None,
 ) -> pd.DataFrame:
     """
-    Load all sheets from the Online Retail II .xlsx file and
+    Load all sheets from the Online Retail.xlsx file and
     concatenate them into a single raw DataFrame.
 
     Parameters
