@@ -2,11 +2,18 @@
 Individual Customer Lookup
 """
 
+import sys
+import os
 import streamlit as st
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from sidebar import render_sidebar
 import pandas as pd
 import plotly.express as px
 
 st.set_page_config(page_title="Customer Lookup", page_icon="🔍", layout="wide")
+render_sidebar()
+
 st.title("🔍 Customer Lookup")
 st.markdown("Full profile for any individual customer.")
 st.divider()
@@ -15,7 +22,6 @@ if "master" not in st.session_state:
 master = st.session_state["master"]
 
 transactions = st.session_state["transactions"]
-rules        = st.session_state["rules"]
 
 # ── Search ────────────────────────────────────────────────────────────────────
 customer_id = st.text_input(
@@ -46,10 +52,6 @@ col1.markdown(f"**Active months:** {row.get('ActiveMonths','—')}")
 
 col2.markdown(f"**Churn risk:** {row.get('ChurnRisk','—')}")
 col2.markdown(f"**Churn prob:** {row.get('ChurnProb',0)*100:.1f}%")
-col2.markdown(f"**P(Alive):** {row.get('ProbAlive',0)*100:.1f}%")
-
-col3.markdown(f"**CLV Tier:** {row.get('CLVTier','—')}")
-col3.markdown(f"**12M CLV:** £{row.get('PredictedCLV_12M',0):,.0f}")
 col3.markdown(f"**Historic revenue:** £{row.get('Monetary',0):,.2f}")
 
 st.divider()
@@ -103,44 +105,3 @@ with st.expander("View raw transactions"):
         use_container_width=True,
         hide_index=True,
     )
-
-st.divider()
-
-# ── Product recommendations ────────────────────────────────────────────────────
-st.subheader("🛒 Product Recommendations")
-st.caption("Based on this customer's purchase history and association rules")
-
-if not rules.empty:
-    bought_codes = set(cust_txns["StockCode"].unique())
-    matches      = []
-
-    for _, r in rules.iterrows():
-        ant_codes = set(r["antecedents_codes"].split(", "))
-        if ant_codes.issubset(bought_codes):
-            con_codes = r["consequents_codes"].split(", ")
-            for code in con_codes:
-                if code not in bought_codes:
-                    matches.append({
-                        "StockCode"  : code,
-                        "Description": r["consequents_names"],
-                        "Confidence" : r["confidence"],
-                        "Lift"       : r["lift"],
-                    })
-
-    if matches:
-        recs = (
-            pd.DataFrame(matches)
-            .sort_values("Lift", ascending=False)
-            .drop_duplicates("StockCode")
-            .head(5)
-        )
-        recs["Confidence"] = (recs["Confidence"] * 100).round(1)
-        st.dataframe(
-            recs.rename(columns={"Confidence":"Confidence (%)"}),
-            use_container_width=True,
-            hide_index=True,
-        )
-    else:
-        st.info("No recommendations available for this customer's purchase history.")
-else:
-    st.info("Run market_basket.py to enable recommendations.")

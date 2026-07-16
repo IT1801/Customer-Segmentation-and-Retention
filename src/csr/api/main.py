@@ -31,10 +31,7 @@ from csr.api.router import router
 from csr.config.configuration import ConfigurationManager
 from csr.constants import (
     ARTIFACTS_DIR,
-    BGF_ARTIFACT,
     CHURN_MODEL_ARTIFACT,
-    DB_SCHEMA,
-    GGF_ARTIFACT,
     KMEANS_ARTIFACT,
     SCALER_RFM_ARTIFACT,
 )
@@ -52,9 +49,6 @@ class ModelStore:
     kmeans      : Optional[object] = None
     scaler      : Optional[object] = None
     churn_model : Optional[object] = None
-    bgf         : Optional[object] = None
-    ggf         : Optional[object] = None
-    rules       : Optional[pd.DataFrame] = None
 
 
 # ─── App factory ──────────────────────────────────────────────────────────────
@@ -63,8 +57,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title       = "Customer Segmentation & Retention API",
         description = (
-            "Serves customer segmentation, churn prediction, CLV forecasting, "
-            "and product recommendations from the Online Retail II dataset."
+            "Serves customer segmentation and churn prediction "
+            "from the Online Retail II dataset."
         ),
         version     = "0.1.0",
         docs_url    = "/docs",
@@ -88,7 +82,6 @@ def create_app() -> FastAPI:
             # ── Model artifacts ───────────────────────────────────────────────
             store = ModelStore()
             store = _load_artifacts(store)
-            store = _load_rules(store, engine)
             app.state.model_store = store
 
             logging.info("All artifacts loaded ✓ — API ready")
@@ -123,8 +116,6 @@ def _load_artifacts(store: ModelStore) -> ModelStore:
             "kmeans"     : KMEANS_ARTIFACT,
             "scaler"     : SCALER_RFM_ARTIFACT,
             "churn_model": CHURN_MODEL_ARTIFACT,
-            "bgf"        : BGF_ARTIFACT,
-            "ggf"        : GGF_ARTIFACT,
         }
 
         for attr, path in artifact_map.items():
@@ -142,45 +133,6 @@ def _load_artifacts(store: ModelStore) -> ModelStore:
     except Exception as e:
         raise CSRException(e, sys)
 
-
-def _load_rules(store: ModelStore, engine: Engine) -> ModelStore:
-    """
-    Load association rules from PostgreSQL into memory.
-    Kept in-memory for fast basket lookup without a DB round-trip per request.
-    """
-    try:
-        rules_table = f"{DB_SCHEMA}.association_rules"
-
-        with engine.connect() as conn:
-            # Check table exists before querying
-            exists = conn.execute(text(
-                f"SELECT EXISTS ("
-                f"SELECT FROM information_schema.tables "
-                f"WHERE table_schema = '{DB_SCHEMA}' "
-                f"AND table_name = 'association_rules'"
-                f")"
-            )).scalar()
-
-        if exists:
-            with engine.connect() as conn:
-                store.rules = pd.read_sql(
-                    text(f"SELECT * FROM {rules_table}"),
-                    conn,
-                )
-            logging.info(
-                f"Association rules loaded — "
-                f"{len(store.rules):,} rules ✓"
-            )
-        else:
-            logging.warning(
-                "association_rules table not found in DB — "
-                "/predict/basket will return 503 until market_basket.py is run"
-            )
-
-        return store
-
-    except Exception as e:
-        raise CSRException(e, sys)
 
 
 # ─── App instance ─────────────────────────────────────────────────────────────

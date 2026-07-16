@@ -20,28 +20,20 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from csr.exception.exception import CSRException
 from csr.logging.logger import logging
 from csr.api.schemas import (
-    BasketRequest,
-    BasketResponse,
     ChurnRequest,
     ChurnResponse,
-    CLVRequest,
-    CLVResponse,
     CustomerProfileResponse,
     HealthResponse,
-    RecommendedProduct,
     SegmentRequest,
     SegmentResponse,
 )
 from csr.constants import (
     CHURN_RISK_BINS,
     CHURN_RISK_LABELS,
-    CLV_DISCOUNT_RATE,
-    CLV_HORIZON_MONTHS,
     COL_CUSTOMER_ID,
     DB_SCHEMA,
     SEGMENT_LABELS,
     TABLE_CHURN_PREDICTIONS,
-    TABLE_CLV_PREDICTIONS,
     TABLE_SEGMENT_RESULTS,
 )
 from sqlalchemy import text
@@ -75,9 +67,6 @@ def health(model_store=Depends(get_model_store)):
             "kmeans"      : model_store.kmeans is not None,
             "rfm_scaler"  : model_store.scaler is not None,
             "churn_xgb"   : model_store.churn_model is not None,
-            "bgf"         : model_store.bgf is not None,
-            "ggf"         : model_store.ggf is not None,
-            "rules"       : model_store.rules is not None,
         },
     )
 
@@ -195,178 +184,7 @@ def predict_churn(
         raise HTTPException(status_code=500, detail=str(CSRException(e, sys)))
 
 
-# ─── CLV Prediction ───────────────────────────────────────────────────────────
 
-@router.post("/predict/clv", response_model=CLVResponse, tags=["CLV"])
-def predict_clv(
-    body        : CLVRequest,
-    model_store = Depends(get_model_store),
-):
-    """
-    Predict 12-month CLV for a customer using BG/NBD + Gamma-Gamma.
-
-    Input  : frequency, recency, T (customer age), monetary_value
-    Output : predicted CLV, CLV tier, P(alive), expected purchases
-    """
-    try:
-        if model_store.bgf is None or model_store.ggf is None:
-            raise HTTPException(status_code=503, detail="CLV models not loaded")
-
-        import pandas as pd
-
-        summary = pd.DataFrame([{
-            "frequency"      : body.frequency,
-            "recency"        : body.recency,
-            "T"              : body.T,
-            "monetary_value" : body.monetary_value,
-        }])
-
-        # Probability alive
-        prob_alive = float(
-            model_store.bgf.conditional_probability_alive(
-                summary["frequency"],
-                summary["recency"],
-                summary["T"],
-            ).iloc[0]
-        )
-
-        # Expected purchases next 90 days
-        expected_purchases = float(
-            model_store.bgf.conditional_expected_number_of_purchases_up_to_time(
-                90,
-                summary["frequency"],
-                summary["recency"],
-                summary["T"],
-            ).iloc[0]
-        )
-
-        # CLV — only for repeat buyers
-        if body.frequency > 0:
-            predicted_clv = float(
-                model_store.ggf.customer_lifetime_value(
-                    model_store.bgf,
-                    summary["frequency"],
-                    summary["recency"],
-                    summary["T"],
-                    summary["monetary_value"],
-                    time          = CLV_HORIZON_MONTHS,
-                    discount_rate = CLV_DISCOUNT_RATE,
-                    freq          = "D",
-                ).iloc[0]
-            )
-        else:
-            predicted_clv = 0.0
-
-        # CLV tier based on predicted value
-        if predicted_clv == 0:
-            clv_tier = "Bronze"
-        elif predicted_clv < 500:
-            clv_tier = "Silver"
-        elif predicted_clv < 2000:
-            clv_tier = "Gold"
-        else:
-            clv_tier = "Platinum"
-
-        logging.info(
-            f"CLV predicted — customer: {body.customer_id} | "
-            f"CLV: £{predicted_clv:.2f} | tier: {clv_tier} | "
-            f"P(alive): {prob_alive:.4f}"
-        )
-
-        return CLVResponse(
-            customer_id            = body.customer_id,
-            predicted_clv_12m      = round(predicted_clv, 2),
-            clv_tier               = clv_tier,
-            prob_alive             = round(prob_alive, 4),
-            expected_purchases_90d = round(expected_purchases, 4),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(CSRException(e, sys)))
-
-
-# ─── Market Basket ────────────────────────────────────────────────────────────
-
-@router.post("/predict/basket", response_model=BasketResponse, tags=["Market Basket"])
-def predict_basket(
-    body        : BasketRequest,
-    model_store = Depends(get_model_store),
-):
-    """
-    Recommend products based on basket contents using association rules.
-
-    Input  : List of StockCodes currently in basket
-    Output : Ranked product recommendations with confidence and lift
-    """
-    try:
-        if model_store.rules is None or model_store.rules.empty:
-            raise HTTPException(status_code=503, detail="Association rules not loaded")
-
-        rules      = model_store.rules
-        input_set  = set(body.stock_codes)
-        matches    = []
-
-        for _, row in rules.iterrows():
-            antecedent_codes = set(row["antecedents_codes"].split(", "))
-
-            # Rule fires if antecedent is a subset of the current basket
-            if antecedent_codes.issubset(input_set):
-                consequent_codes = row["consequents_codes"].split(", ")
-
-                for code in consequent_codes:
-                    # Don't recommend items already in basket
-                    if code not in input_set:
-                        matches.append({
-                            "stock_code" : code,
-                            "description": row["consequents_names"],
-                            "confidence" : row["confidence"],
-                            "lift"       : row["lift"],
-                        })
-
-        if not matches:
-            logging.info(
-                f"No rules matched for basket: {body.stock_codes}"
-            )
-            return BasketResponse(
-                input_codes     = body.stock_codes,
-                recommendations = [],
-            )
-
-        # Deduplicate by stock_code, keep highest-lift match
-        recs_df = (
-            pd.DataFrame(matches)
-            .sort_values("lift", ascending=False)
-            .drop_duplicates(subset="stock_code")
-            .head(body.top_n)
-        )
-
-        recommendations = [
-            RecommendedProduct(
-                stock_code  = row["stock_code"],
-                description = row["description"],
-                confidence  = round(row["confidence"], 4),
-                lift        = round(row["lift"], 4),
-            )
-            for _, row in recs_df.iterrows()
-        ]
-
-        logging.info(
-            f"Basket recommendations — "
-            f"input: {body.stock_codes} | "
-            f"recs: {[r.stock_code for r in recommendations]}"
-        )
-
-        return BasketResponse(
-            input_codes     = body.stock_codes,
-            recommendations = recommendations,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(CSRException(e, sys)))
 
 
 # ─── Customer Profile ─────────────────────────────────────────────────────────
@@ -396,15 +214,10 @@ def get_customer_profile(
                 s."CohortMonth"     AS cohort_month,
                 s."ActiveMonths"    AS active_months,
                 c."ChurnProb"       AS churn_prob,
-                c."ChurnRisk"       AS churn_risk,
-                v."PredictedCLV_12M" AS predicted_clv_12m,
-                v."CLVTier"         AS clv_tier,
-                v."ProbAlive"       AS prob_alive
+                c."ChurnRisk"       AS churn_risk
             FROM {DB_SCHEMA}.{TABLE_SEGMENT_RESULTS} s
             LEFT JOIN {DB_SCHEMA}.{TABLE_CHURN_PREDICTIONS} c
                 ON s."{COL_CUSTOMER_ID}" = c."{COL_CUSTOMER_ID}"
-            LEFT JOIN {DB_SCHEMA}.{TABLE_CLV_PREDICTIONS} v
-                ON s."{COL_CUSTOMER_ID}" = v."{COL_CUSTOMER_ID}"
             WHERE s."{COL_CUSTOMER_ID}" = :customer_id
         """)
 

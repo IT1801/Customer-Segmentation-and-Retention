@@ -9,7 +9,7 @@
 
 .PHONY: help setup install db-up db-down db-reset \
         etl features \
-        train-segmentation train-churn train-clv train-basket train \
+        train-segmentation train-churn train \
         serve dashboard mlflow \
         test lint format clean all
 
@@ -39,9 +39,7 @@ help:
 	@echo "  MODELS"
 	@echo "    make train-segmentation KMeans customer segmentation"
 	@echo "    make train-churn        XGBoost churn prediction"
-	@echo "    make train-clv          BG/NBD + Gamma-Gamma CLV"
-	@echo "    make train-basket       FP-Growth market basket rules"
-	@echo "    make train              Run all 4 models in order"
+	@echo "    make train              Run all 2 models in order"
 	@echo ""
 	@echo "  SERVE"
 	@echo "    make serve              Start FastAPI server (port 8000)"
@@ -116,17 +114,7 @@ train-churn:
 	python -m src.csr.models.churn
 	@echo "✓ Churn model complete"
 
-train-clv:
-	@echo "── Training CLV model ────────────────────────────"
-	python -m src.csr.models.clv
-	@echo "✓ CLV model complete"
-
-train-basket:
-	@echo "── Running market basket analysis ────────────────"
-	python -m src.csr.models.market_basket
-	@echo "✓ Market basket complete"
-
-train: train-segmentation train-churn train-clv train-basket
+train: train-segmentation train-churn
 	@echo "✓ All models trained"
 
 

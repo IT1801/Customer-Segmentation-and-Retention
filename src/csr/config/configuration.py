@@ -77,12 +77,6 @@ class ChurnConfig:
     feature_columns: List[str]
 
 
-@dataclass
-class CLVConfig:
-    penalizer_coef: float
-    bgf_artifact: str
-    ggf_artifact: str
-
 
 @dataclass
 class FeaturesConfig:
@@ -91,8 +85,6 @@ class FeaturesConfig:
     cohort_table: str
     features_table: str
     churn_threshold_days: int
-    clv_horizon_months: int
-    clv_discount_rate: float
 
 
 @dataclass
@@ -191,8 +183,6 @@ class ConfigurationManager:
             cohort_table         = f["cohort_table"],
             features_table       = f["features_table"],
             churn_threshold_days = int(f["churn_threshold_days"]),
-            clv_horizon_months   = int(f["clv_horizon_months"]),
-            clv_discount_rate    = float(f["clv_discount_rate"]),
         )
 
     def get_segmentation_config(self) -> SegmentationConfig:
@@ -218,14 +208,6 @@ class ConfigurationManager:
             colsample_bytree = float(c["colsample_bytree"]),
             artifact_name    = c["artifact_name"],
             feature_columns  = c["feature_columns"],
-        )
-
-    def get_clv_config(self) -> CLVConfig:
-        c = self._raw["models"]["clv"]
-        return CLVConfig(
-            penalizer_coef = float(c["penalizer_coef"]),
-            bgf_artifact   = c["bgf_artifact"],
-            ggf_artifact   = c["ggf_artifact"],
         )
 
     def get_mlflow_config(self) -> MLflowConfig:

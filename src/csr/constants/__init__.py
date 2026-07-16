@@ -24,8 +24,6 @@ ARTIFACTS_DIR         = ROOT_DIR / "models" / "artifacts"
 KMEANS_ARTIFACT       = ARTIFACTS_DIR / "kmeans.joblib"
 SCALER_RFM_ARTIFACT   = ARTIFACTS_DIR / "scaler_rfm.joblib"
 CHURN_MODEL_ARTIFACT  = ARTIFACTS_DIR / "churn_xgb.joblib"
-BGF_ARTIFACT          = ARTIFACTS_DIR / "bgf.joblib"
-GGF_ARTIFACT          = ARTIFACTS_DIR / "ggf.joblib"
 
 # ─── Database schema & table names ───────────────────────────────────────────
 DB_SCHEMA                  = "retail"
@@ -36,7 +34,6 @@ TABLE_CUSTOMER_BEHAVIOURAL = "customer_behavioural"
 TABLE_CUSTOMER_COHORT      = "customer_cohort"
 TABLE_SEGMENT_RESULTS      = "segment_results"
 TABLE_CHURN_PREDICTIONS    = "churn_predictions"
-TABLE_CLV_PREDICTIONS      = "clv_predictions"
 
 # ─── Raw data column names ───────────────────────────────────────────────────
 COL_INVOICE     = "InvoiceNo"
@@ -56,10 +53,6 @@ OUTLIER_QUANTILE       = 0.99
 DB_INSERT_CHUNKSIZE    = 10_000
 
 # ─── Feature engineering constants ───────────────────────────────────────────
-#CHURN_THRESHOLD_DAYS   = 90
-CLV_HORIZON_MONTHS     = 12
-CLV_DISCOUNT_RATE      = 0.01
-CLV_PENALIZER_COEF     = 0.1
 
 # ─── Segmentation constants ──────────────────────────────────────────────────
 N_CLUSTERS             = 4

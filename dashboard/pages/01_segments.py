@@ -3,7 +3,12 @@ dashboard/pages/01_segments.py
 Customer Segmentation Explorer
 """
 
+import sys
+import os
 import streamlit as st
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from sidebar import render_sidebar
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -11,6 +16,8 @@ from sklearn.decomposition import PCA
 import numpy as np
 
 st.set_page_config(page_title="Segments", page_icon="🎯", layout="wide")
+render_sidebar()
+
 st.title("🎯 Customer Segments")
 st.markdown("K-Means segmentation on RFM features.")
 st.divider()

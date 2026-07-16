@@ -60,24 +60,6 @@ class ChurnResponse(BaseModel):
     churn_risk   : str   = Field(..., description="Low / Medium / High")
 
 
-# ─── CLV Prediction ───────────────────────────────────────────────────────────
-
-class CLVRequest(BaseModel):
-    customer_id    : str
-    frequency      : float = Field(..., ge=0, description="Number of repeat purchases")
-    recency        : float = Field(..., ge=0, description="Days between first and last purchase")
-    T              : float = Field(..., ge=0, description="Customer age in days")
-    monetary_value : float = Field(..., ge=0, description="Mean revenue per transaction")
-
-
-class CLVResponse(BaseModel):
-    customer_id         : str
-    predicted_clv_12m   : float = Field(..., description="Predicted 12-month CLV in GBP")
-    clv_tier            : str   = Field(..., description="Bronze / Silver / Gold / Platinum")
-    prob_alive          : float = Field(..., description="Probability customer is still active")
-    expected_purchases_90d: float = Field(..., description="Expected purchases in next 90 days")
-
-
 # ─── Customer Lookup ──────────────────────────────────────────────────────────
 
 class CustomerProfileResponse(BaseModel):
@@ -92,36 +74,9 @@ class CustomerProfileResponse(BaseModel):
     # Churn
     churn_prob            : Optional[float] = None
     churn_risk            : Optional[str]   = None
-    # CLV
-    predicted_clv_12m     : Optional[float] = None
-    clv_tier              : Optional[str]   = None
-    prob_alive            : Optional[float] = None
     # Cohort
     cohort_month          : Optional[str]   = None
     active_months         : Optional[int]   = None
-
-
-# ─── Market Basket ────────────────────────────────────────────────────────────
-
-class BasketRequest(BaseModel):
-    stock_codes: List[str] = Field(
-        ...,
-        min_length=1,
-        description="List of StockCodes currently in the basket"
-    )
-    top_n: int = Field(5, ge=1, le=20, description="Max recommendations to return")
-
-
-class RecommendedProduct(BaseModel):
-    stock_code  : str
-    description : str
-    confidence  : float
-    lift        : float
-
-
-class BasketResponse(BaseModel):
-    input_codes     : List[str]
-    recommendations : List[RecommendedProduct]
 
 
 # ─── Health check ─────────────────────────────────────────────────────────────

@@ -3,11 +3,18 @@ dashboard/pages/02_churn.py
 Churn Analysis
 """
 
+import sys
+import os
 import streamlit as st
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from sidebar import render_sidebar
 import pandas as pd
 import plotly.express as px
 
 st.set_page_config(page_title="Churn", page_icon="⚠️", layout="wide")
+render_sidebar()
+
 st.title("⚠️ Churn Analysis")
 st.markdown("Churn probability and risk tiers across customer segments.")
 st.divider()
@@ -92,52 +99,52 @@ st.plotly_chart(fig3, use_container_width=True)
 
 st.divider()
 
-# ── High risk customer table ───────────────────────────────────────────────────
-st.subheader("🔴 High Risk Customers")
-st.caption("Customers with churn probability > 60% — prioritise for retention campaigns")
+# ── Highest Risk customer table ───────────────────────────────────────────────────
+st.subheader("🔴 Highest Risk Customers")
+st.caption("Top customers ranked by churn probability — prioritise for retention campaigns")
 
 high_risk_df = (
-    master[master["ChurnRisk"] == "High"]
+    master
     [[
         "CustomerID","SegmentLabel",
         "Recency","Frequency","Monetary",
-        "ChurnProb","CLVTier","PredictedCLV_12M"
+        "ChurnProb"
     ]]
     .sort_values("ChurnProb", ascending=False)
     .head(100)
 )
 high_risk_df["ChurnProb"]        = (high_risk_df["ChurnProb"] * 100).round(1)
-high_risk_df["PredictedCLV_12M"] = high_risk_df["PredictedCLV_12M"].round(0)
+high_risk_df["Monetary"]         = high_risk_df["Monetary"].round(2)
 
 st.dataframe(
     high_risk_df.rename(columns={
         "SegmentLabel"     : "Segment",
         "ChurnProb"        : "Churn Prob (%)",
-        "PredictedCLV_12M" : "12M CLV (£)",
+        "Monetary"         : "Historic Revenue (£)",
     }),
     use_container_width=True,
     hide_index=True,
 )
 
-# ── Churn vs CLV scatter ──────────────────────────────────────────────────────
+# ── Churn vs Revenue scatter ──────────────────────────────────────────────────────
 st.divider()
-st.subheader("Churn Probability vs CLV — Risk Prioritisation")
+st.subheader("Churn Probability vs Customer Revenue — Risk Prioritisation")
 st.caption("Top-right = highest priority: high value customers at risk of churning")
 
 fig4 = px.scatter(
     master.sample(min(2000, len(master)), random_state=42),
     x          = "ChurnProb",
-    y          = "PredictedCLV_12M",
+    y          = "Monetary",
     color      = "SegmentLabel",
-    hover_data = ["CustomerID","Recency","Monetary"],
+    hover_data = ["CustomerID","Recency"],
     opacity    = 0.6,
     labels     = {
         "ChurnProb"        : "Churn Probability",
-        "PredictedCLV_12M" : "Predicted 12M CLV (£)",
+        "Monetary"         : "Historic Revenue (£)",
     },
     title = "Churn Risk vs Customer Value",
 )
 fig4.add_vline(x=0.6, line_dash="dash", line_color="red",   annotation_text="High churn threshold")
-fig4.add_hline(y=master["PredictedCLV_12M"].median(),
-               line_dash="dash", line_color="orange", annotation_text="Median CLV")
+fig4.add_hline(y=master["Monetary"].median(),
+               line_dash="dash", line_color="orange", annotation_text="Median Revenue")
 st.plotly_chart(fig4, use_container_width=True)

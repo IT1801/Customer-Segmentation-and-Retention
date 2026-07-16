@@ -33,8 +33,6 @@ features:
   behavioural_table: customer_behavioural
   cohort_table: customer_cohort
   features_table: customer_features
-  clv_horizon_months: 12
-  clv_discount_rate: 0.01
   churn_threshold_days: 90
 
 models:
@@ -75,11 +73,6 @@ models:
       - DaysSinceFirstPurchase
       - ReturnRate
       - Segment
-
-  clv:
-    penalizer_coef: 0.01
-    bgf_artifact: bgf.joblib
-    ggf_artifact: ggf.joblib
 
 mlflow:
   tracking_uri: ${MLFLOW_TRACKING_URI}

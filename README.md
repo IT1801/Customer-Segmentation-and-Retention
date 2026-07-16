@@ -1,249 +1,96 @@
 # Customer Segmentation & Retention Analysis
 
-End-to-end data science pipeline for customer segmentation and retention analysis on the [Online Retail II UCI dataset](https://archive.ics.uci.edu/ml/datasets/Online+Retail+II) (~1M transactions, 2009–2011).
+An end-to-end data science solution designed to understand customer behaviour, identify high-value segments, and predict churn risk. This project analyses transactional data to provide actionable intelligence for targeted marketing and retention strategies.
 
 ---
 
-## What this project does
+## 🎯 Executive Summary
 
-| Component | What it builds |
+Understanding customer behaviour is critical for sustainable growth. This project implements a robust machine learning pipeline that transforms raw transactional data into strategic insights. 
+
+By clustering customers into distinct segments and predicting their likelihood of churning, the system enables businesses to:
+- Identify and reward "Champion" customers.
+- Proactively engage "At Risk" segments before they churn.
+- Tailor marketing campaigns based on historical purchasing patterns.
+- Monitor high-level KPIs across the entire customer base.
+
+---
+
+## 🏗️ System Architecture
+
+The project is built on a modern, scalable data stack designed for reliability and performance:
+
+- **Data Pipeline (ETL)**: A robust Python pipeline that extracts raw data, performs cleaning and imputation, and loads it into a PostgreSQL database.
+- **Feature Engineering**: Calculates Recency, Frequency, Monetary (RFM) metrics alongside complex behavioural features for each customer.
+- **Machine Learning Models**:
+  - **Segmentation**: K-Means clustering algorithm used to group customers into 4 distinct segments (Champions, Loyal Customers, At Risk, Lost/Inactive).
+  - **Churn Prediction**: XGBoost classifier trained to predict churn probability, enhanced with SHAP (SHapley Additive exPlanations) for model interpretability.
+- **REST API**: A FastAPI application that serves real-time model predictions and customer profiles for downstream consumption.
+- **Interactive Dashboard**: A Streamlit application providing business users with an intuitive interface to explore data, view KPI dashboards, and lookup individual customers.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technologies |
 |---|---|
-| **ETL pipeline** | Extracts raw `.xlsx` → cleans → loads into PostgreSQL |
-| **Feature engineering** | RFM, behavioural, and cohort features per customer |
-| **Segmentation** | K-Means clustering → 4 customer segments |
-| **Churn prediction** | XGBoost classifier with SHAP explainability |
-| **CLV modelling** | BG/NBD + Gamma-Gamma → 12-month CLV per customer |
-| **Market basket** | FP-Growth association rules for product recommendations |
-| **FastAPI** | REST API serving all model predictions |
-| **Streamlit** | Interactive dashboard with 6 pages |
-| **MLflow** | Experiment tracking across all model runs |
+| **Data Processing** | `pandas`, `numpy`, `pyarrow` |
+| **Database** | PostgreSQL 16, `SQLAlchemy` |
+| **Machine Learning** | `scikit-learn`, `XGBoost`, `shap` |
+| **Model Serving (API)** | `FastAPI`, `uvicorn`, `pydantic` |
+| **Frontend Dashboard** | `Streamlit`, `Plotly` |
+| **Experiment Tracking**| `MLflow` |
+| **Infrastructure** | Docker, `docker-compose` |
 
 ---
 
-## Project structure
+## 📊 Business Intelligence Dashboard
 
-```
-customer-segmentation/
-├── config/
-│   └── config.yaml               ← central config (DB, paths, model params)
-├── src/csr/
-│   ├── constants/__init__.py     ← all hardcoded values
-│   ├── config/configuration.py  ← typed config manager
-│   ├── etl/
-│   │   ├── extract.py
-│   │   ├── transform.py
-│   │   ├── load.py
-│   │   └── pipeline.py
-│   ├── features/
-│   │   ├── rfm.py
-│   │   ├── behavioural.py
-│   │   ├── cohort.py
-│   │   └── build_features.py
-│   ├── models/
-│   │   ├── segmentation.py
-│   │   ├── churn.py
-│   │   ├── clv.py
-│   │   └── market_basket.py
-│   └── api/
-│       ├── main.py
-│       ├── router.py
-│       └── schemas.py
-├── dashboard/
-│   ├── app.py
-│   └── pages/
-│       ├── 01_segments.py
-│       ├── 02_churn.py
-│       ├── 03_clv.py
-│       ├── 04_cohort.py
-│       ├── 05_market_basket.py
-│       └── 06_customer_lookup.py
-├── research/                     ← exploratory notebooks
-├── models/artifacts/             ← saved .joblib model files
-├── data/
-│   ├── raw/                      ← original .xlsx (gitignored)
-│   ├── interim/                  ← cleaned parquet (research only)
-│   └── processed/                ← feature parquet (research only)
-├── tests/
-├── scripts/
-│   └── init.sql                  ← Postgres schema initialisation
-├── docker-compose.yml
-├── pyproject.toml
-├── Makefile
-├── .env.example
-└── README.md
-```
+The analytical dashboard provides stakeholders with immediate access to insights across four key views:
+
+1. **🏠 Overview**: Real-time KPI cards displaying total revenue, active customers, and overall churn rates.
+2. **🎯 Segments**: Visualisation of customer clusters through PCA scatter plots and RFM distributions, allowing marketing teams to understand segment characteristics.
+3. **⚠️ Churn Analysis**: Risk distribution charts and a ranked list of the top 100 customers at the highest risk of churning, prioritised by historic revenue.
+4. **🔍 Customer Lookup**: Deep-dive profiles for individual customers, showcasing their RFM stats, segment label, and real-time churn probability.
 
 ---
 
-## Tech stack
+## 📈 Key Performance Metrics
 
-| Layer | Tools |
-|---|---|
-| Data | pandas, numpy, pyarrow, openpyxl |
-| Database | PostgreSQL 16, SQLAlchemy, psycopg2-binary |
-| ML | scikit-learn, XGBoost, lifetimes, mlxtend, shap, lifelines |
-| API | FastAPI, uvicorn, pydantic |
-| Dashboard | Streamlit, Plotly |
-| Orchestration | Prefect |
-| Experiment tracking | MLflow |
-| Infra | Docker, docker-compose |
+The models have been thoroughly evaluated and demonstrate strong predictive capabilities:
+
+- **Customers Analysed**: ~5,900 unique profiles mapped from ~1 million historical transactions.
+- **Segmentation Quality**: Silhouette score of ~0.42, indicating well-defined and logically separated clusters.
+- **Churn Prediction Performance**: ROC-AUC score of ~0.91, proving highly effective at distinguishing between loyal and churning customers.
 
 ---
 
-## Quickstart
+## 🗄️ Data Schema
 
-### 1. Clone and install
+The PostgreSQL database acts as the central source of truth, housing the following curated tables for analytics and serving:
+
+- `retail.cleaned_transactions`: Granular transaction history post-ETL processing.
+- `retail.customer_features`: Engineered feature matrix for machine learning ingestion.
+- `retail.segment_results`: Customer IDs mapped to their respective K-Means segment labels.
+- `retail.churn_predictions`: Computed churn probabilities and risk tiers per customer.
+
+---
+
+## 🚀 Quickstart
 
 ```bash
-git clone https://github.com/your-username/customer-segmentation.git
-cd customer-segmentation
-cp .env.example .env        # fill in DB_PASSWORD
-make install-dev            # installs all dependencies
-```
+# 1. Install dependencies
+make install-dev
 
-### 2. Download the dataset
-
-Download **Online Retail** from [UCI](https://archive.ics.uci.edu/ml/datasets/Online+Retail+II) or [Kaggle](https://www.kaggle.com/datasets/mashlyn/online-retail-ii-uci) and place it at:
-
-```
-data/raw/online_retail_II.xlsx
-```
-
-### 3. Start PostgreSQL
-
-```bash
+# 2. Start PostgreSQL database
+cp .env.example .env
 make db-up
-```
 
-### 4. Run the full pipeline
-
-```bash
+# 3. Run the full pipeline (ETL → Features → Train Models)
 make all
-```
 
-This runs ETL → features → all 4 models in sequence.
-
-Or run each step individually:
-
-```bash
-make etl                   # ~3 min
-make features              # ~1 min
-make train-segmentation    # ~30s
-make train-churn           # ~1 min
-make train-clv             # ~2 min
-make train-basket          # ~2 min
-```
-
-### 5. Start the services
-
-```bash
-make serve       # FastAPI  → http://localhost:8000/docs
-make dashboard   # Streamlit → http://localhost:8501
-make mlflow      # MLflow   → http://localhost:5000
-```
-
----
-
-## API endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/health` | Liveness check |
-| `POST` | `/api/v1/predict/segment` | RFM → segment label |
-| `POST` | `/api/v1/predict/churn` | Features → churn probability |
-| `POST` | `/api/v1/predict/clv` | RFM-T → 12M CLV |
-| `POST` | `/api/v1/predict/basket` | Basket → product recommendations |
-| `GET` | `/api/v1/customer/{id}` | Full customer profile |
-
-Interactive docs: **http://localhost:8000/docs**
-
----
-
-## Dashboard pages
-
-| Page | What you see |
-|---|---|
-| 🏠 Overview | KPI cards — revenue, churn rate, avg CLV, P(alive) |
-| 🎯 Segments | PCA scatter, RFM box plots, segment profile table |
-| ⚠️ Churn | Risk distribution, churn vs CLV scatter, high-risk customer list |
-| 💰 CLV | CLV tiers, P(alive) vs expected purchases, top customers |
-| 📅 Cohort | Retention heatmap, monthly active customers, acquisition trend |
-| 🛒 Market Basket | Association rules explorer, product recommendation search |
-| 🔍 Customer Lookup | Full profile + transaction history + recommendations per customer |
-
----
-
-## Run with Docker (all services)
-
-```bash
-cp .env.example .env    # fill in DB_PASSWORD
-docker-compose up -d    # starts Postgres + API + Dashboard + MLflow
-```
-
-Services:
-- API: http://localhost:8000/docs
-- Dashboard: http://localhost:8501
-- MLflow: http://localhost:5000
-
----
-
-## Environment variables
-
-Copy `.env.example` to `.env` and set:
-
-```env
-DB_HOST=db                        # Docker service name (not localhost)
-DB_PORT=6543
-DB_NAME=customer_segmentation
-DB_USER=postgres
-DB_PASSWORD=your_password_here
-```
-
-> **Note:** When running pipeline scripts locally (not in Docker), set `DB_HOST=localhost`.
-
----
-
-## Postgres tables (retail schema)
-
-| Table | Written by | Contents |
-|---|---|---|
-| `retail.cleaned_transactions` | `etl/pipeline.py` | ~824K cleaned rows |
-| `retail.customer_features` | `build_features.py` | ~5.9K customers × 19 features |
-| `retail.segment_results` | `segmentation.py` | Features + segment label |
-| `retail.churn_predictions` | `churn.py` | ChurnProb, ChurnRisk per customer |
-| `retail.clv_predictions` | `clv.py` | CLV, CLVTier, ProbAlive per customer |
-| `retail.association_rules` | `market_basket.py` | FP-Growth rules |
-
----
-
-## Key results (typical run)
-
-| Metric | Value |
-|---|---|
-| Customers segmented | ~5,900 |
-| Churn model ROC-AUC | ~0.91 |
-| Silhouette score | ~0.42 |
-| Median 12M CLV | ~£320 |
-| Association rules | ~180 |
-
----
-
-## Makefile reference
-
-```bash
-make help               # list all commands
-make setup              # first-time setup
-make all                # full pipeline
-make db-up / db-down    # start / stop Postgres
-make db-shell           # psql shell in container
-make etl                # ETL pipeline
-make features           # feature engineering
-make train              # all 4 models
-make serve              # FastAPI
-make dashboard          # Streamlit
-make mlflow             # MLflow UI
-make test               # pytest
-make lint               # ruff
-make format             # black
-make clean              # remove logs / caches
+# 4. Launch the services
+make serve       # FastAPI API (http://localhost:8000/docs)
+make dashboard   # Streamlit UI (http://localhost:8501)
+make mlflow      # MLflow tracking (http://localhost:5000)
 ```
